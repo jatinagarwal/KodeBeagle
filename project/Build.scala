@@ -129,6 +129,7 @@ object KodeBeagleBuild extends Build {
       git.useGitDescribe := true,
       scalacOptions := scalacOptionsList,
       //resolvers += Resolver.mavenLocal,
+      resolvers += "jitpack" at "https://jitpack.io",
       updateOptions := updateOptions.value.withCachedResolution(true),
       updateOptions := updateOptions.value.withLatestSnapshots(false),
       crossPaths := false,
@@ -162,6 +163,9 @@ object Dependencies {
   val graphx = "org.apache.spark" % "spark-graphx_2.11" % "1.4.1"
   val junit = "junit" % "junit" % "4.12"
   val rhino = "org.mozilla" % "rhino" % "1.7R4"
+  val apiminer =  "com.github.jatinagarwal" % "apiminer" % "v0.0.4"
+  val es = "org.elasticsearch" % "elasticsearch" % "1.7.1"
+
 
   //Eclipse dependencies for Tassal libs
   object EclipseDeps {
@@ -179,8 +183,8 @@ object Dependencies {
     val allDeps = Seq(tycho, contentType, coreJobs, coreResources, coreRT, eqCommon, eqPref, eqReg, osgi, text)
   }
 
-  val kodebeagle = Seq(akka, httpClient, scalastyle, spark, parserCombinator, scalaTest, slf4j, javaparser, json4s, config,
-    json4sJackson, jgit, commonsIO, esSpark, graphx, guava, compress, junit, rhino) ++ EclipseDeps.allDeps
+  val kodebeagle = Seq(es, akka, httpClient, scalastyle, spark, parserCombinator, scalaTest, slf4j, javaparser, json4s, config,
+    json4sJackson, jgit, commonsIO, esSpark, graphx, guava, compress, junit, rhino, apiminer) ++ EclipseDeps.allDeps
 
   val ideaPluginTest = Seq(scalaTest, commonsIO)
   val ideaPlugin = Seq()

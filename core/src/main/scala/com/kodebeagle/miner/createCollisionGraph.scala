@@ -40,10 +40,12 @@ import org.elasticsearch.common.settings.ImmutableSettings
 import org.elasticsearch.common.transport.InetSocketTransportAddress
 import org.elasticsearch.index.query.QueryBuilders
 import org.jgrapht.DirectedGraph
+import org.jgrapht.graph.AbstractGraph
 import scala.collection.JavaConversions._
-import scala.collection.mutable
+import scala.collection.{Map, mutable}
 
 import com.kb.java.graph.Node
+
 object CreateCollisionGraph extends Logger {
   val esPortKey = "es.port"
   val esNodesKey = "es.nodes"
@@ -74,9 +76,9 @@ object CreateCollisionGraph extends Logger {
 
 
     /*Step 1: Finding unique list of all import statements across all the repos */
-    val listOfApis = List("java.io.BufferedReader", "java.nio.FileChannel", "java.io.PrintWriter", "java.io.File");
+    val listOfApis = List("java.io.BufferedReader", "java.nio.channels.FileChannel", "java.io.PrintWriter", "java.io.File");
 
-    def query(apiName: String) = "{\n  \"query\": {\n    \"bool\": {\n      \"must\": [\n        {\n          \"term\": {\n            \"typeimportsmethods.tokens.importName\": \""+apiName+"\"\n          }\n        }\n      ],\n      \"must_not\": [],\n      \"should\": []\n    }\n  }\n}"
+    def query(apiName: String) = "{\n  \"query\": {\n    \"bool\": {\n      \"must\": [\n        {\n          \"term\": {\n            \"typeimportsmethods.tokens.importName\": \"" + apiName + "\"\n          }\n        }\n      ],\n      \"must_not\": [],\n      \"should\": []\n    }\n  }\n}"
 
 
     /*Step 2: Finding list of fileNames for each statement */
@@ -88,7 +90,7 @@ object CreateCollisionGraph extends Logger {
           val score = valuesMap.get("score").getOrElse(null).asInstanceOf[Int]
           (fileName, score) -> apiName
         }
-      }.filter { case ((fileName, score), apiName) => score >= 100 }.map { case ((fileName, score), apiName) => (fileName, apiName) }
+      }.filter { case ((fileName, score), apiName) => score >= 20 }.map { case ((fileName, score), apiName) => (fileName, apiName) }
     }
 
     val apiFileInfo: List[RDD[(String, Iterable[String])]] = listOfApis.map { apiName =>
@@ -99,28 +101,28 @@ object CreateCollisionGraph extends Logger {
     //      case ((fileName, score), apiName) => score >= 100
     //    }
 
-    fileWithApiNames.persist()
-    val nof: Long = fileWithApiNames.count()
-    print("$$$$$$$$$$$$$$$$$$$" + nof + "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
-    val a: Int = longRunningOperation();
-    print("I slept for 15 seconds" + a)
+    //    fileWithApiNames.persist()
+    //    val nof: Long = fileWithApiNames.count()
+    // print("$$$$$$$$$$$$$$$$$$$" + nof + "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
+    // val a: Int = longRunningOperation();
+    //print("I slept for 15 seconds" + a)
 
 
     val apiGraphs: RDD[(String, List[NamedDirectedGraph])] = fileWithApiNames.flatMap { case (fileName, apiNames) =>
       //      val fileName: String = fileInfo._1
       //      val fileScore: Int = fileInfo._2
       val fileContent: String = getSourceFileContent(transportClient, fileName)
-      println("&&&&&&&&&&&&&&&File Name: " + fileName)
+      //      println("&&&&&&&&&&&&&&&File Name: " + fileName)
       //      println("***************FileContent: "+ fileContent)
       val graphUtils: GraphUtils = new GraphUtils()
       val apiWeightedGraphs: List[(String, List[NamedDirectedGraph])] = apiNames.map { api =>
         val graphsInfo: util.HashMap[String, NamedDirectedGraph] = new util.HashMap[String, NamedDirectedGraph]()
         val apiGraphList: util.List[NamedDirectedGraph] = graphUtils.getGraphsFromFile(fileContent, api)
-        println("^^^^^^^^ APINAME: " + api + " APICount: " + apiGraphList.size())
+        //        println("^^^^^^^^ APINAME: " + api + " APICount: " + apiGraphList.size())
         graphUtils.getNamedDirectedGraphs(graphsInfo, apiGraphList)
         (api, graphsInfo.values().toList)
       }
-//      apiWeightedGraphs.map { case (a, b) => println("@@@@@@@@@@@@@@@@@@@@ APi name " + a + " graph size  " + b.size) }
+      //      apiWeightedGraphs.map { case (a, b) => println("@@@@@@@@@@@@@@@@@@@@ APi name " + a + " graph size  " + b.size) }
       apiWeightedGraphs
     }.reduceByKey(_ ++ _)
 
@@ -134,25 +136,54 @@ object CreateCollisionGraph extends Logger {
     val noc = 5
     val edgeSupport = 0.2
 
-    val clustering: RDD[(String, List[NamedDirectedGraph])] = apiGraphs.mapValues { it =>
+    val clustering: RDD[(String, List[(NamedDirectedGraph, NamedDirectedGraph, Int)])] = apiGraphs.mapValues { it =>
       val clusterClass = new Clusterer()
       val apiMinerMerging = new GraphUtils()
-      //      it.map{item =>
-      //        val graphsInstances: util.HashMap[String, NamedDirectedGraph] = pair._1
-      //        val fileScore = pair._2
-      val clusters: util.List[Cluster[NamedDirectedGraph]] = clusterClass.getClusters(it, noc, 0.7D)
+      val clusters: util.List[Cluster[NamedDirectedGraph]] = clusterClass.getClusters(it, noc, 0.7D/noc)
       clusters.map { cluster =>
         var collisionGraph: NamedDirectedGraph = new NamedDirectedGraph()
         val graphsInCluster: util.List[NamedDirectedGraph] = cluster.getInstances
+        val clusterSize = cluster.getSizeOfCluster
         val mergingGraphsInCluster: Unit = graphsInCluster.foreach { graphInstance =>
           collisionGraph = apiMinerMerging.mergeGraphs(collisionGraph, graphInstance)
         }
         apiMinerMerging.trim(collisionGraph, graphsInCluster.size() * edgeSupport)
-        collisionGraph
+//        println("Cluster Size : "+clusterSize+" CollisionGraph Info: "+ collisionGraph.getSeedName + " " +collisionGraph.getMethodName + " " + collisionGraph.getLabel)
+//        println("Graph as String: " + collisionGraph.toString);
+        (collisionGraph, cluster.getMean, clusterSize)
       }.toList
     }
-
+    clustering.persist()
     println("$$$$$$$$$$$$$" + clustering.count() + "$$$$$$$$$$$$$$$$$$$")
+    apiGraphs.unpersist()
+    //    val  collectGraphs: Map[String, List[(NamedDirectedGraph, NamedDirectedGraph)]] = clustering.collectAsMap()
+
+    val printingGraphs: RDD[String] = clustering.flatMap {
+      case (apiName, apiListOfAbstractGraphAndConcreteGraph) => {
+        var clusterIndex: Int = 0
+        apiListOfAbstractGraphAndConcreteGraph.map { graphPair =>
+          val absractGraph: NamedDirectedGraph = graphPair._1
+          val concreteGraph: NamedDirectedGraph = graphPair._2
+          val filePathAbs: String = "/home/jatina/graphResults/" + apiName + "AbstractGraph" + clusterIndex + ".dot"
+          val filePathCon: String = "/home/jatina/graphResults/" + apiName + "ConcreteGraph" + clusterIndex + ".dot"
+
+          val abst = exportGraphs(absractGraph, filePathAbs)
+          val con = exportGraphs(concreteGraph, filePathCon)
+//          println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
+//          println("##############"+abst+"######################################")
+//          println("##################"+con+"####################################")
+          clusterIndex = clusterIndex + 1
+          toJson(ApiPatternIndex(apiName, clusterIndex, abst, con))
+        }
+      }
+    }
+
+    printingGraphs.persist()
+    println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
+    println("@@@@@@@@@@@@@@@Total number of graphs@@@@@@@@@@@@@: " +printingGraphs.count())
+    //    printingGraphs.saveAsTextFile("/home/jatina/graphResults/results")
+    clustering.unpersist()
+    printingGraphs.saveAsTextFile("/home/jatina/graphResults/res1")
 
 
     //    import com.kb.java.graph.Node
@@ -236,9 +267,16 @@ object CreateCollisionGraph extends Logger {
     sc.stop()
   }
 
+  def exportGraphs(graph: NamedDirectedGraph, filepath: String): String = {
+    val graphUtils = new GraphUtils()
+    graphUtils.saveToString(graph, filepath)
+  }
+
   def longRunningOperation(): Int = {
     Thread.sleep(15000);
     1
   }
 
 }
+
+case class ApiPatternIndex(apinName: String, clusterIndex: Int, abstractGrap : String, concreteGraph : String)

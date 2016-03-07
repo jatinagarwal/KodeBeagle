@@ -107,7 +107,7 @@ object CreateCollisionGraph extends Logger {
           val fileName: String = valuesMap.get("file").getOrElse("").asInstanceOf[String]
           (fileName, score) -> apiName
         }
-      }.filter { case ((fileName, score), apiName) => score >= 151}.map { case ((fileName, score), apiName) => (fileName, apiName) }
+      }.filter { case ((fileName, score), apiName) => score >= 100}.map { case ((fileName, score), apiName) => (fileName, apiName) }
     }
 
     /* Obtaining an list of RDD containing  (FileName, List of ApiNames) */
@@ -156,7 +156,7 @@ object CreateCollisionGraph extends Logger {
     val noc = 5
     val edgeSupport = 0.2
 
-    val clustering: RDD[(String, List[(String, Int, String, String, String)])] = samplingApiGraphs.mapValues { it =>
+    val clustering: RDD[(String, List[(String, Int, String, String, String, Int, Int)])] = samplingApiGraphs.mapValues { it =>
       val clusterClass = new Clusterer()
       val apiMinerMerging = new GraphUtils()
       val clusters: util.List[Cluster[NamedDirectedGraph]] = clusterClass.getClusters(it, noc, 0.7D/noc)
@@ -171,7 +171,8 @@ object CreateCollisionGraph extends Logger {
         val filePathAbs: String = ""
         val abst: String = exportGraphs(collisionGraph)
         val conGraph = cluster.getMean
-        (abst, clusterSize, conGraph.getSeedName, conGraph.getMethodName, conGraph.getFileName)
+        (abst, clusterSize, conGraph.getSeedName, conGraph.getMethodName, conGraph.getFileName,
+          conGraph.getStartLineNumber, conGraph.getEndLineNumber)
       }.toList
     }
     clustering.persist()
@@ -182,20 +183,11 @@ object CreateCollisionGraph extends Logger {
     val printingGraphs: RDD[String] = clustering.flatMap {
       case (apiName, apiListOfAbstractGraphAndConcreteGraph) => {
         var clusterIndex: Int = 0
-        apiListOfAbstractGraphAndConcreteGraph.map { graphPair =>
-
-          val (abst, clusterSize, seedName, methodName, fileName) = graphPair
-//          val absractGraph: NamedDirectedGraph = graphPair._1
-//          val concreteGraph: NamedDirectedGraph = graphPair._2
-//
-//          val filePathAbs: String = "/home/jatina/graphResults/" + apiName + "AbstractGraph" + clusterIndex + ".dot"
-//          val filePathCon: String = "/home/jatina/graphResults/" + apiName + "ConcreteGraph" + clusterIndex + ".dot"
-//
-//          val abst: String = exportGraphs(absractGraph, filePathAbs)
-//          val con: String = exportGraphs(concreteGraph, filePathCon)
-
+        apiListOfAbstractGraphAndConcreteGraph.map { graphTuple =>
+          val (abst, clusterSize, seedName, methodName, fileName, startLineNumber, endLineNumber) = graphTuple
           clusterIndex = clusterIndex + 1
-          toJson(ApiPatternIndex(apiName, clusterIndex, abst, clusterSize, seedName, methodName, fileName))
+          toJson(ApiPatternIndex(apiName, clusterIndex, abst, clusterSize, seedName, methodName, fileName,
+            startLineNumber, endLineNumber))
         }
       }
     }
@@ -203,7 +195,7 @@ object CreateCollisionGraph extends Logger {
     printingGraphs.persist()
     println("@@@@@@@@@@@@@@@Total number of graphs@@@@@@@@@@@@@: " +printingGraphs.count())
     clustering.unpersist()
-    printingGraphs.saveAsTextFile("/home/jatina/graphResults/res10")
+    printingGraphs.saveAsTextFile("/home/jatina/graphResults/res14")
 //    printingGraphs.saveJsonToEs("apipatternindex/typeapipatternindex", Map("es.write.operation" -> "index"))
 //    printingGraphs.saveJsonToEs("apipatternindex/typeapipatternindex")
     sc.stop()
@@ -221,5 +213,6 @@ object CreateCollisionGraph extends Logger {
 
 }
 
-case class ApiPatternIndex(apinName: String, clusterIndex: Int, abstractGraph : String,
-                           clusterSize: Int, seedName: String, methodName: String, fileName: String)
+case class ApiPatternIndex(api: String, clusterIndex: Int, abstractGraph : String,
+                           clusterSize: Int, seedNames: String, methodName: String,
+                           fileName: String, startlineNumber : Int, endLineNumber: Int)

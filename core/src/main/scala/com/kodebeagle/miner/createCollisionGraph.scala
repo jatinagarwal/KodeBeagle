@@ -19,6 +19,8 @@ package com.kodebeagle.spark
 
 import java.net.InetAddress
 import java.util
+import com.google.common.collect.TreeMultiset
+
 import scala.Predef
 import scala.util.Random
 
@@ -30,6 +32,7 @@ import com.kb.java.model.{Cluster, Clusterer}
 import com.kodebeagle.configuration.KodeBeagleConfig
 import com.kodebeagle.spark.SparkIndexJobHelper._
 import com.kodebeagle.logging.Logger
+import com.google.common.collect.TreeMultiset
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkContext, SparkConf}
 import org.elasticsearch.action.search.SearchRequestBuilder
@@ -156,22 +159,22 @@ object CreateCollisionGraph extends Logger {
     val noc = 5
     val edgeSupport = 0.2
 
-    val clustering: RDD[(String, List[(String, Int, String, String, String, Int, Int)])] = samplingApiGraphs.mapValues { it =>
+    val clustering: RDD[(String, List[(String, Int, util.List[String], String, String, Int, Int)])] = samplingApiGraphs.mapValues { it =>
       val clusterClass = new Clusterer()
       val apiMinerMerging = new GraphUtils()
       val clusters: util.List[Cluster[NamedDirectedGraph]] = clusterClass.getClusters(it, noc, 0.7D/noc)
       clusters.map { cluster =>
         var collisionGraph: NamedDirectedGraph = new NamedDirectedGraph()
+        val seedNames: TreeMultiset[String] = TreeMultiset.create()
         val graphsInCluster: util.List[NamedDirectedGraph] = cluster.getInstances
         val clusterSize = cluster.getSizeOfCluster
-        val mergingGraphsInCluster: Unit = graphsInCluster.foreach { graphInstance =>
+        graphsInCluster.foreach { graphInstance =>
+          seedNames.add(graphInstance.getSeedName)
           collisionGraph = apiMinerMerging.mergeGraphs(collisionGraph, graphInstance)
         }
         apiMinerMerging.trim(collisionGraph, graphsInCluster.size() * edgeSupport)
-        val filePathAbs: String = ""
-        val abst: String = exportGraphs(collisionGraph)
         val conGraph = cluster.getMean
-        (abst, clusterSize, conGraph.getSeedName, conGraph.getMethodName, conGraph.getFileName,
+        (exportGraphs(collisionGraph), clusterSize, apiMinerMerging.getTopN(seedNames,5), conGraph.getMethodName, conGraph.getFileName,
           conGraph.getStartLineNumber, conGraph.getEndLineNumber)
       }.toList
     }
@@ -184,9 +187,9 @@ object CreateCollisionGraph extends Logger {
       case (apiName, apiListOfAbstractGraphAndConcreteGraph) => {
         var clusterIndex: Int = 0
         apiListOfAbstractGraphAndConcreteGraph.map { graphTuple =>
-          val (abst, clusterSize, seedName, methodName, fileName, startLineNumber, endLineNumber) = graphTuple
+          val (abst, clusterSize, seedNames, methodName, fileName, startLineNumber, endLineNumber) = graphTuple
           clusterIndex = clusterIndex + 1
-          toJson(ApiPatternIndex(apiName, clusterIndex, abst, clusterSize, seedName, methodName, fileName,
+          toJson(ApiPatternIndex(apiName, clusterIndex, abst, clusterSize, seedNames.toList, methodName, fileName,
             startLineNumber, endLineNumber))
         }
       }
@@ -214,5 +217,5 @@ object CreateCollisionGraph extends Logger {
 }
 
 case class ApiPatternIndex(api: String, clusterIndex: Int, abstractGraph : String,
-                           clusterSize: Int, seedNames: String, methodName: String,
+                           clusterSize: Int, seedNames: List[String], methodName: String,
                            fileName: String, startlineNumber : Int, endLineNumber: Int)

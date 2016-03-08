@@ -163,7 +163,7 @@ object Dependencies {
   val graphx = "org.apache.spark" % "spark-graphx_2.11" % "1.4.1"
   val junit = "junit" % "junit" % "4.12"
   val rhino = "org.mozilla" % "rhino" % "1.7R4"
-  val apiminer =  "com.github.jatinagarwal" % "apiminer" % "v0.1.3"
+  val apiminer =  "com.github.jatinagarwal" % "apiminer" % "v0.1.5"
   val es = "org.elasticsearch" % "elasticsearch" % "1.7.1"
 
 

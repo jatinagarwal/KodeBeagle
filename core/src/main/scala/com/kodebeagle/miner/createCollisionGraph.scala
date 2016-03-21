@@ -20,6 +20,8 @@ package com.kodebeagle.spark
 import java.net.InetAddress
 import java.util
 import com.google.common.collect.TreeMultiset
+import org.apache.spark.storage.StorageLevel
+import org.elasticsearch.common.settings.Settings.Builder
 
 import scala.Predef
 import scala.util.Random
@@ -38,7 +40,7 @@ import org.apache.spark.{SparkContext, SparkConf}
 import org.elasticsearch.action.search.SearchRequestBuilder
 import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.client.transport.TransportClient
-import org.elasticsearch.common.settings.ImmutableSettings
+import org.elasticsearch.common.settings.Settings
 import org.elasticsearch.common.transport.InetSocketTransportAddress
 import org.elasticsearch.index.query.QueryBuilders
 import org.elasticsearch.spark._
@@ -54,9 +56,14 @@ object CreateCollisionGraph extends Logger {
   conf.set("es.http.timeout", "5m")
   conf.set("es.scroll.size", "20")
 
-  val transportClient = new TransportClient(
-    ImmutableSettings.settingsBuilder().put("cluster.name", "elasticsearch").build()
-  ).addTransportAddress(new InetSocketTransportAddress(InetAddress.getByName("192.168.2.67"), 9300))
+  val settings: Settings = Settings.settingsBuilder().put("cluster.name", "kodebeagle1").build()
+
+  val transportClient = TransportClient.builder().settings(settings).build()
+    .addTransportAddress(new InetSocketTransportAddress(InetAddress.getByName("192.168.2.149"), 9301))
+
+//  val transportClient = new TransportClient(
+//    ImmutableSettings.settingsBuilder().put("cluster.name", "elasticsearch").build()
+//  ).addTransportAddress(new InetSocketTransportAddress(InetAddress.getByName("192.168.2.140"), 9301))
 
   /* Fetches fileContent from the elastic search for the given fileName */
   def getSourceFileContent(transportClient: TransportClient, fileName: String): String = {
@@ -110,7 +117,7 @@ object CreateCollisionGraph extends Logger {
           val fileName: String = valuesMap.get("file").getOrElse("").asInstanceOf[String]
           (fileName, score) -> apiName
         }
-      }.filter { case ((fileName, score), apiName) => score >= 100}.map { case ((fileName, score), apiName) => (fileName, apiName) }
+      }.filter { case ((fileName, score), apiName) => score >= 20}.map { case ((fileName, score), apiName) => (fileName, apiName)}
     }
 
     /* Obtaining an list of RDD containing  (FileName, List of ApiNames) */
@@ -121,7 +128,7 @@ object CreateCollisionGraph extends Logger {
     /*Step 3: Combining list of RDD's into a single RDD using reduceLeft  */
     val fileWithApiNames: RDD[(String, List[String])] = apiFileInfo.reduceLeft(_ ++ _).reduceByKey(_ ++ _).mapValues(_.toList.distinct)
 
-    fileWithApiNames.persist()
+    fileWithApiNames.persist(StorageLevel.MEMORY_AND_DISK)
     println("$$$$$$$$$$ Number of files : "+fileWithApiNames.count())
     /*Step 4: Obtaining list of Weighted Directed Graphs for each Api*/
     val apiGraphs: RDD[(String, List[NamedDirectedGraph])] = fileWithApiNames.flatMap { case (fileName, apiNames) =>
@@ -138,11 +145,11 @@ object CreateCollisionGraph extends Logger {
 
 
     /* Printing number of obtained directed graph for each Api*/
-    apiGraphs.persist()
+    apiGraphs.persist(StorageLevel.MEMORY_AND_DISK)
     val samplingApiGraphs: RDD[(String, List[NamedDirectedGraph])] = apiGraphs.mapValues{list =>
       val totalGraphs = list.size
-      if(totalGraphs > 2000)
-        Random.shuffle(list).take(2000)
+      if(totalGraphs > 1000)
+        Random.shuffle(list).take(1000)
       else
         list
     }
@@ -178,7 +185,7 @@ object CreateCollisionGraph extends Logger {
           conGraph.getStartLineNumber, conGraph.getEndLineNumber)
       }.toList
     }
-    clustering.persist()
+    clustering.persist(StorageLevel.MEMORY_AND_DISK)
     println("$$$$$$$$$$$$$" + clustering.count() + "$$$$$$$$$$$$$$$$$$$")
     apiGraphs.unpersist()
 
@@ -198,7 +205,7 @@ object CreateCollisionGraph extends Logger {
     printingGraphs.persist()
     println("@@@@@@@@@@@@@@@Total number of graphs@@@@@@@@@@@@@: " +printingGraphs.count())
     clustering.unpersist()
-    printingGraphs.saveAsTextFile("/home/jatina/graphResults/res14")
+    printingGraphs.saveAsTextFile("/home/jatina/graphResults/res32")
 //    printingGraphs.saveJsonToEs("apipatternindex/typeapipatternindex", Map("es.write.operation" -> "index"))
 //    printingGraphs.saveJsonToEs("apipatternindex/typeapipatternindex")
     sc.stop()

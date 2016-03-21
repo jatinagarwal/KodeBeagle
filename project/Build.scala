@@ -147,9 +147,7 @@ object Dependencies {
 
   val scalastyle = "org.scalastyle" %% "scalastyle" % "0.7.0"
   // Needed for scala parsing.
-  val spark = "org.apache.spark" %% "spark-core" % "1.6.1" //exclude("org.apache.hadoop","hadoop-client")
-  //"org.apache.spark" %% "spark-core" % "1.3.1" // % "provided" Provided makes it not run through sbt run.
-  //val parserCombinator = "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.3"
+  val spark = "org.apache.spark" %% "spark-core" % "1.6.1" exclude("org.apache.hadoop","hadoop-client")
   val scalaTest = "org.scalatest" %% "scalatest" % "2.2.4" % "test"
   val slf4j = "org.slf4j" % "slf4j-log4j12" % "1.7.10"
   val javaparser = "com.github.javaparser" % "javaparser-core" % "2.0.0"
@@ -168,9 +166,7 @@ object Dependencies {
   val rhino = "org.mozilla" % "rhino" % "1.7R4"
   val apiminer =  "com.github.jatinagarwal" % "apiminer" % "v0.1.5"
   val es = "org.elasticsearch" % "elasticsearch" % "2.2.0"
-  val esHadoop = "org.elasticsearch" % "elasticsearch-hadoop" % "2.2.0" //intransitive()
-  val jersey = "com.sun.jersey" % "jersey-servlet" % "1.19"
-//  val hadoopClient = "org.apache.hadoop" % "hadoop-client" % "2.5.2" intransitive()
+  val hadoopCommon = "org.apache.hadoop" % "hadoop-common" % "2.5.2"
 
   //Eclipse dependencies for Tassal libs
   object EclipseDeps {
@@ -189,7 +185,8 @@ object Dependencies {
   }
 
   val kodebeagle = Seq(es, akka, httpClient, scalastyle, spark, scalaTest, slf4j, javaparser, json4s, config,
-    json4sJackson, jgit, commonsIO, esSpark, guava, compress, junit, rhino, apiminer,jersey, graphx) ++ EclipseDeps.allDeps
+    json4sJackson, jgit, commonsIO, esSpark, guava, compress, junit, rhino, apiminer, graphx, hadoopCommon
+  ) ++ EclipseDeps.allDeps
 
 
   val ideaPluginTest = Seq(scalaTest, commonsIO)

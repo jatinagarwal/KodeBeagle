@@ -30,7 +30,7 @@ import scala.util.Random
 import com.kb.GraphUtils;
 import com.kb.java.graph.{NamedDirectedGraph}
 import com.kb.java.model.{Cluster, Clusterer}
-;
+
 import com.kodebeagle.configuration.KodeBeagleConfig
 import com.kodebeagle.spark.SparkIndexJobHelper._
 import com.kodebeagle.logging.Logger
@@ -105,7 +105,21 @@ object CreateCollisionGraph extends Logger {
     val listOfApis = List("java.io.BufferedReader", "java.nio.channels.FileChannel", "java.io.PrintWriter", "java.io.File")
 
     /* Query to obtain information about given apiName*/
-    def query(apiName: String) = "{\n  \"query\": {\n    \"bool\": {\n      \"must\": [\n        {\n          \"term\": {\n            \"typeimportsmethods.tokens.importName\": \"" + apiName + "\"\n          }\n        }\n      ],\n      \"must_not\": [],\n      \"should\": []\n    }\n  }\n}"
+    def query(apiName: String) =
+      //"{\n  \"query\": {\n    \"bool\": {\n      \"must\": [\n        {\n          \"term\": {\n            \"typeimportsmethods.tokens.importName\": \"" + apiName + "\"\n          }\n        }\n      ],\n      \"must_not\": [],\n      \"should\": []\n    }\n  }\n}"
+      """{
+        |  "query": {
+        |    "bool": {
+        |      "must": [
+        |        {
+        |          "term": {
+        |            "tokens.importName": "java.io.bufferedreader"
+        |          }
+        |        }
+        |      ]
+        |    }
+        |  }
+        |}""".stripMargin
 
 
     /*Step 2: Method to obtain all (fileName, ApiName) pairs by any given apiName*/

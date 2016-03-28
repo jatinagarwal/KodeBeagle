@@ -102,18 +102,34 @@ object CreateCollisionGraph extends Logger {
 
     /* Step : Getting unique list of apis from importMethodsIndex across all the indexed data */
 //    val listOfApis: RDD[String] =  getApis(sc)
-    val listOfApis = List("java.io.BufferedReader", "java.nio.channels.FileChannel", "java.io.PrintWriter", "java.io.File")
+    val apiRanks = sc.textFile("/home/jatina/workspace/PageRankDump_desc/apiRanks").cache()
+    val sortedApis: RDD[(Double, String)] = apiRanks.map{a =>
+      val b = a.replaceAll("\\(|\\)", "").split(",")
+      var rank = 0.0
+      try {
+        if(b(1) != "")
+          rank = b(1).toDouble
+      }
+      catch {
+        case ex: Exception => log.error("Exception converting  string to number", ex)
+          rank = 0.0
+      }
+      (rank,b(0).toString)
+    }.filter(item => item._1 > 1.0)
+    val listOfApis: List[String] = sortedApis.values.take(100000).toList
+
+//    val listOfApis = List("java.io.BufferedReader", "java.nio.channels.FileChannel", "java.io.PrintWriter", "java.io.File")
 
     /* Query to obtain information about given apiName*/
     def query(apiName: String) =
       //"{\n  \"query\": {\n    \"bool\": {\n      \"must\": [\n        {\n          \"term\": {\n            \"typeimportsmethods.tokens.importName\": \"" + apiName + "\"\n          }\n        }\n      ],\n      \"must_not\": [],\n      \"should\": []\n    }\n  }\n}"
-      """{
+      s"""{
         |  "query": {
         |    "bool": {
         |      "must": [
         |        {
         |          "term": {
-        |            "tokens.importName": "java.io.bufferedreader"
+        |            "tokens.importName":"$apiName"
         |          }
         |        }
         |      ]
@@ -131,7 +147,7 @@ object CreateCollisionGraph extends Logger {
           val fileName: String = valuesMap.get("file").getOrElse("").asInstanceOf[String]
           (fileName, score) -> apiName
         }
-      }.filter { case ((fileName, score), apiName) => score >= 20}.map { case ((fileName, score), apiName) => (fileName, apiName)}
+      }.filter { case ((fileName, score), apiName) => score >= 200}.map { case ((fileName, score), apiName) => (fileName, apiName)}
     }
 
     /* Obtaining an list of RDD containing  (FileName, List of ApiNames) */
@@ -219,7 +235,7 @@ object CreateCollisionGraph extends Logger {
     printingGraphs.persist()
     println("@@@@@@@@@@@@@@@Total number of graphs@@@@@@@@@@@@@: " +printingGraphs.count())
     clustering.unpersist()
-    printingGraphs.saveAsTextFile("/home/jatina/graphResults/res32")
+    printingGraphs.saveAsTextFile("/home/jatina/graphResults/resForOneLakhApis")
 //    printingGraphs.saveJsonToEs("apipatternindex/typeapipatternindex", Map("es.write.operation" -> "index"))
 //    printingGraphs.saveJsonToEs("apipatternindex/typeapipatternindex")
     sc.stop()

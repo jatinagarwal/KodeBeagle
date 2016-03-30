@@ -40,19 +40,19 @@ object KodeBeagleBuild extends Build {
   lazy val core = Project("core", file("core"), settings =
     coreSettings)
 
-  lazy val ml = Project("ml", file("ml"), settings = kodebeagleSettings) dependsOn core
+  lazy val ml = Project("ml", file("ml"), settings = mlSettings) dependsOn core
 
   lazy val pluginImpl = Project("pluginImpl", file("plugins/idea/pluginImpl"), settings =
     pluginSettingsFull ++ findbugsSettings ++ scalaPluginSettings ++
       codequality.CodeQualityPlugin.Settings ++ excludeDependency).settings(
-    findbugsExcludeFilters := Some(
-      <FindBugsFilter>
-        <Match>
-          <Class name="~.*PsiScalaElementVisitor.*"/>
-        </Match>
-      </FindBugsFilter>
-    )
-  ) dependsOn pluginBase
+      findbugsExcludeFilters := Some(
+        <FindBugsFilter>
+          <Match>
+            <Class name="~.*PsiScalaElementVisitor.*"/>
+          </Match>
+        </FindBugsFilter>
+      )
+    ) dependsOn pluginBase
 
   lazy val pluginTests = Project("pluginTests", file("plugins/idea/pluginTests"), settings =
     pluginTestSettings) dependsOn pluginImpl disablePlugins AssemblyPlugin
@@ -76,9 +76,17 @@ object KodeBeagleBuild extends Build {
         """[warn] Plugin project disabled. To enable append -Didea.lib="idea/lib"""" ++
           """ to JVM params in SBT settings or""" ++
           """ while invoking sbt (incase it is called from commandline.). """)
-      Seq(core)
+      Seq(core, ml)
     }
   }
+
+
+  def mlSettings = kodebeagleSettings ++ Seq(libraryDependencies ++= Dependencies.kodebeagle) ++ Seq(assemblyMergeStrategy in assembly := {
+    case "plugin.properties" | "plugin.xml" | ".api_description" | "META-INF/eclipse.inf" | ".options" => MergeStrategy.first
+    case x =>
+      val oldStrategy = (assemblyMergeStrategy in assembly).value
+      oldStrategy(x)
+  })
 
 
   def scalaPluginSettings =  Seq(
@@ -139,14 +147,14 @@ object KodeBeagleBuild extends Build {
       javaOptions += "-Xmx6048m",
       javaOptions += "-XX:+HeapDumpOnOutOfMemoryError",
       ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) }
-  )
+    )
 }
 
 object Dependencies {
 
   val scalastyle = "org.scalastyle" %% "scalastyle" % "0.7.0"
   // Needed for scala parsing.
-  val spark = "org.apache.spark" %% "spark-core" % "1.4.1" % "provided"//).exclude("org.apache.hadoop","hadoop-client")
+  val spark = "org.apache.spark" %% "spark-core" % "1.4.1" % "provided" //).exclude("org.apache.hadoop","hadoop-client")// % ""//
   val scalaTest = "org.scalatest" %% "scalatest" % "2.2.4" % "test"
   val slf4j = "org.slf4j" % "slf4j-log4j12" % "1.7.10"
   val javaparser = "com.github.javaparser" % "javaparser-core" % "2.0.0"

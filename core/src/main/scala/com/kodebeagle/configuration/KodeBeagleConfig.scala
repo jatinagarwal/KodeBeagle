@@ -26,26 +26,26 @@ object KodeBeagleConfig extends ConfigReader{
   var lastIndex=0
 
   // Output dir for spark job.
-  private[kodebeagle] val sparkIndexOutput = get("kodebeagle.spark.index.outputDir").get
-  private[kodebeagle] val sparkCheckpointDir = get("kodebeagle.spark.checkpointDir").get
-  private[kodebeagle] val sparkRepoOutput = get("kodebeagle.spark.repo.outputDir").get
-  private[kodebeagle] val sparkSourceOutput = get("kodebeagle.spark.source.outputDir").get
-  private[kodebeagle] val sparkMethodsOutput = get("kodebeagle.spark.method.outputDir").get
+   val sparkIndexOutput = get("kodebeagle.spark.index.outputDir").get
+   val sparkCheckpointDir = get("kodebeagle.spark.checkpointDir").get
+   val sparkRepoOutput = get("kodebeagle.spark.repo.outputDir").get
+   val sparkSourceOutput = get("kodebeagle.spark.source.outputDir").get
+   val sparkMethodsOutput = get("kodebeagle.spark.method.outputDir").get
 
-  private[kodebeagle] val linesOfContext = get("kodebeagle.indexing.linesOfContext").get
+   val linesOfContext = get("kodebeagle.indexing.linesOfContext").get
   // This is required to use GithubAPIHelper
-  private[kodebeagle] val githubTokens: Array[String] =
+   val githubTokens: Array[String] =
     get("kodebeagle.spark.githubTokens").get.split(",")
   // This is required to use GithubAPIHelper
-  private[kodebeagle] val githubDir: String = get("kodebeagle.github.crawlDir").get
-  private[kodebeagle] val sparkMaster: String = get("kodebeagle.spark.master").get
+   val githubDir: String = get("kodebeagle.github.crawlDir").get
+   val sparkMaster: String = get("kodebeagle.spark.master").get
   
-  private[kodebeagle] val esNodes: String = get("kodebeagle.es.nodes").get
-  private[kodebeagle] val esPort: String = get("kodebeagle.es.port").get
-  private[kodebeagle] val esRepositoryIndex: String = get("kodebeagle.es.repositoryIndex").get
-  private[kodebeagle] val esRepoTopicIndex: String = get("kodebeagle.es.repoTopicIndex").get
-  private[kodebeagle] val esourceFileIndex: String = get("kodebeagle.es.sourceFileIndex").get
-  private[kodebeagle] val eImportsMethodsIndex: String = get("kodebeagle.es.importsmethodsIndex").get
+   val esNodes: String = get("kodebeagle.es.nodes").get
+   val esPort: String = get("kodebeagle.es.port").get
+   val esRepositoryIndex: String = get("kodebeagle.es.repositoryIndex").get
+   val esRepoTopicIndex: String = get("kodebeagle.es.repoTopicIndex").get
+   val esourceFileIndex: String = get("kodebeagle.es.sourceFileIndex").get
+   val eImportsMethodsIndex: String = get("kodebeagle.es.importsmethodsIndex").get
 
   def nextToken(arr: Array[String] = githubTokens): String = {
     if (lastIndex == arr.length - 1) {
@@ -60,15 +60,15 @@ object KodeBeagleConfig extends ConfigReader{
 
 object TopicModelConfig extends ConfigReader {
   def config: Config = ConfigFactory.load(ConfigFactory.parseResources("topicmodelling.properties"))
-  private[kodebeagle] val jobName = get("kodebeagle.ml.topicmodel.jobname").get
-  private[kodebeagle] val nbgTopics = get("kodebeagle.ml.topicmodel.nBgTopics").get.toInt
-  private[kodebeagle] val nIterations = get("kodebeagle.ml.topicmodel.nIterations").get.toInt
-  private[kodebeagle] val nDescriptionWords = 
+   val jobName = get("kodebeagle.ml.topicmodel.jobname").get
+   val nbgTopics = get("kodebeagle.ml.topicmodel.nBgTopics").get.toInt
+   val nIterations = get("kodebeagle.ml.topicmodel.nIterations").get.toInt
+   val nDescriptionWords = 
     get("kodebeagle.ml.topicmodel.nDescriptionWords").get.toInt
-  private[kodebeagle] val chkptInterval = get("kodebeagle.ml.topicmodel.chkptInterval").get.toInt
-  private[kodebeagle] val batchSize = get("kodebeagle.ml.topicmodel.batchSize").get.toInt
-  private[kodebeagle] val save = get("kodebeagle.ml.topicmodel.save").get.trim.toBoolean
-  private[kodebeagle] val saveToLocal = get("kodebeagle.ml.topicmodel.saveToLocal").get.trim
+   val chkptInterval = get("kodebeagle.ml.topicmodel.chkptInterval").get.toInt
+   val batchSize = get("kodebeagle.ml.topicmodel.batchSize").get.toInt
+   val save = get("kodebeagle.ml.topicmodel.save").get.trim.toBoolean
+   val saveToLocal = get("kodebeagle.ml.topicmodel.saveToLocal").get.trim
 }
 
 trait ConfigReader {

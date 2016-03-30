@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package com.kodebeagle.javaparser;
+package com.kodebeagle.apiminer.javaparser;
 
 import com.google.common.collect.Maps;
-import com.kodebeagle.javaparser.MethodInvocationResolver.MethodDecl;
-import com.kodebeagle.javaparser.MethodInvocationResolver.MethodInvokRef;
+import com.kodebeagle.apiminer.javaparser.MethodInvocationResolver.MethodDecl;
+import com.kodebeagle.apiminer.javaparser.MethodInvocationResolver.MethodInvokRef;
 import org.eclipse.jdt.core.dom.ASTNode;
 
 import java.util.List;

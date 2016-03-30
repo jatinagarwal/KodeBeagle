@@ -19,8 +19,8 @@ import org.jgrapht.util.WeightCombiner;
 import com.kb.java.graph.DirectedEdge;
 import com.kb.java.graph.NamedDirectedGraph;
 import com.kb.java.graph.Node;
-import com.kodebeagle.javaparser.CFGResolver;
-import com.kodebeagle.javaparser.JavaASTParser;
+import com.kodebeagle.apiminer.javaparser.CFGResolver;
+import com.kodebeagle.apiminer.javaparser.JavaASTParser;
 
 public class GraphUtils implements Serializable{
 	public Map<String, String> idMap = new HashMap<>();

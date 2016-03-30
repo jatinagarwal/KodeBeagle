@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package com.kodebeagle.javaparser;
+package com.kodebeagle.apiminer.javaparser;
 
 import java.io.IOException;
 import java.util.Hashtable;

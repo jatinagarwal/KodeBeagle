@@ -1,4 +1,4 @@
-package com.kodebeagle.javaparser;
+package com.kodebeagle.apiminer.javaparser;
 
 import java.util.ArrayList;
 import java.util.HashMap;

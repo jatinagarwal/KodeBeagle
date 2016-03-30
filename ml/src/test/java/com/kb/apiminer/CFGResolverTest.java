@@ -16,7 +16,7 @@ import org.junit.Test;
 
 import com.kb.java.graph.DirectedEdge;
 import com.kb.java.graph.Node;
-import com.kodebeagle.javaparser.CFGResolver;
+import com.kodebeagle.apiminer.javaparser.CFGResolver;
 import com.kodebeagle.javaparser.JavaASTParser;
 import com.kodebeagle.javaparser.JavaASTParser.ParseType;
 

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package com.kodebeagle.javaparser;
+package com.kodebeagle.apiminer.javaparser;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;

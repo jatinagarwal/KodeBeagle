@@ -55,14 +55,10 @@ object CreateCollisionGraph extends Logger {
   conf.set("es.http.timeout", "5m")
   conf.set("es.scroll.size", "20")
 
-  val settings: Settings = Settings.settingsBuilder().put("cluster.name", "kodebeagle1").build()
+  val settings: Settings = Settings.settingsBuilder().put("cluster.name", "elasticsearch").build()
 
   val transportClient = TransportClient.builder().settings(settings).build()
-    .addTransportAddress(new InetSocketTransportAddress(InetAddress.getByName("192.168.2.149"), 9301))
-
-//  val transportClient = new TransportClient(
-//    ImmutableSettings.settingsBuilder().put("cluster.name", "elasticsearch").build()
-//  ).addTransportAddress(new InetSocketTransportAddress(InetAddress.getByName("192.168.2.140"), 9301))
+    .addTransportAddress(new InetSocketTransportAddress(InetAddress.getByName("localhost"), 9300))
 
   /* Fetches fileContent from the elastic search for the given fileName */
   def getSourceFileContent(transportClient: TransportClient, fileName: String): String = {
@@ -95,11 +91,16 @@ object CreateCollisionGraph extends Logger {
   }
 
   def main(args: Array[String]) {
-    conf.set(esNodesKey, args(0))
-    conf.set(esPortKey, args(1))
+    val ipAddress = args(0)
+    val httpPort = args(1)
+    val outputDir = args(2)
+    val repoScore = args(3).toInt
+    val sampleSize = args(4).toInt
+
+    conf.set(esNodesKey, ipAddress)
+    conf.set(esPortKey, httpPort)
     val sc: SparkContext = createSparkContext(conf)
 
-    /* Step : Getting unique list of apis from importMethodsIndex across all the indexed data */
 //    val listOfApis: RDD[String] =  getApis(sc)
     val apiRanks = sc.textFile("/home/jatina/workspace/PageRankDump_desc/apiRanks").cache()
     val sortedApis: RDD[(Double, String)] = apiRanks.map{a =>
@@ -114,8 +115,12 @@ object CreateCollisionGraph extends Logger {
           rank = 0.0
       }
       (rank,b(0).toString)
-    }.filter(item => item._1 > 1.0)
-    val listOfApis: List[String] = sortedApis.values.take(100000).toList
+    }.sortByKey(false)//.filter(item => item._1 > 1.0)
+
+    val listOfApis: List[String] = sortedApis.values.take(50).toList
+    listOfApis.foreach{item =>
+      println("$$$$$$$$$"+item)
+    }
 
 //    val listOfApis = List("java.io.BufferedReader", "java.nio.channels.FileChannel", "java.io.PrintWriter", "java.io.File")
 
@@ -146,7 +151,7 @@ object CreateCollisionGraph extends Logger {
           val fileName: String = valuesMap.get("file").getOrElse("").asInstanceOf[String]
           (fileName, score) -> apiName
         }
-      }.filter { case ((fileName, score), apiName) => score >= 200}.map { case ((fileName, score), apiName) => (fileName, apiName)}
+      }.filter { case ((fileName, score), apiName) => score >= repoScore}.map { case ((fileName, score), apiName) => (fileName, apiName)}
     }
 
     /* Obtaining an list of RDD containing  (FileName, List of ApiNames) */
@@ -177,8 +182,8 @@ object CreateCollisionGraph extends Logger {
     apiGraphs.persist(StorageLevel.MEMORY_AND_DISK)
     val samplingApiGraphs: RDD[(String, List[NamedDirectedGraph])] = apiGraphs.mapValues{list =>
       val totalGraphs = list.size
-      if(totalGraphs > 1000)
-        Random.shuffle(list).take(1000)
+      if(totalGraphs > sampleSize)
+        Random.shuffle(list).take(sampleSize)
       else
         list
     }
@@ -234,7 +239,7 @@ object CreateCollisionGraph extends Logger {
     printingGraphs.persist()
     println("@@@@@@@@@@@@@@@Total number of graphs@@@@@@@@@@@@@: " +printingGraphs.count())
     clustering.unpersist()
-    printingGraphs.saveAsTextFile("/home/jatina/graphResults/resForOneLakhApis")
+    printingGraphs.saveAsTextFile(outputDir)
 //    printingGraphs.saveJsonToEs("apipatternindex/typeapipatternindex", Map("es.write.operation" -> "index"))
 //    printingGraphs.saveJsonToEs("apipatternindex/typeapipatternindex")
     sc.stop()

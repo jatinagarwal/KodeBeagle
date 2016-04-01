@@ -23,7 +23,7 @@ import de.johoop.findbugs4sbt.FindBugs._
 import sbt.Keys._
 import sbt._
 import sbtassembly.AssemblyKeys._
-import sbtassembly.{AssemblyPlugin, MergeStrategy}
+import sbtassembly.{ShadeRule, AssemblyPlugin, MergeStrategy}
 
 object KodeBeagleBuild extends Build {
 
@@ -80,7 +80,6 @@ object KodeBeagleBuild extends Build {
     }
   }
 
-
   def mlSettings = kodebeagleSettings ++ Seq(libraryDependencies ++= Dependencies.kodebeagle) ++ Seq(assemblyMergeStrategy in assembly := {
     case "plugin.properties" | "plugin.xml" | ".api_description" | "META-INF/eclipse.inf" | ".options" => MergeStrategy.first
     case x =>
@@ -127,6 +126,7 @@ object KodeBeagleBuild extends Build {
       oldStrategy(x)
   })
 
+
   def kodebeagleSettings =
     Defaults.coreDefaultSettings ++ Seq(
       name := "KodeBeagle",
@@ -143,10 +143,12 @@ object KodeBeagleBuild extends Build {
       updateOptions := updateOptions.value.withLatestSnapshots(false),
       crossPaths := false,
       fork := true,
-      javacOptions ++= Seq("-source", "1.7"),
       javaOptions += "-Xmx6048m",
       javaOptions += "-XX:+HeapDumpOnOutOfMemoryError",
-      ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) }
+      ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) },
+      assemblyShadeRules in assembly := Seq(
+        ShadeRule.rename("org.apache.commons.collections.**" -> "shadeio.@1").inProject
+      )
     )
 }
 
@@ -164,7 +166,9 @@ object Dependencies {
   val config = "com.typesafe" % "config" % "1.2.1"
   val jgit = "org.eclipse.jgit" % "org.eclipse.jgit" % "3.7.0.201502260915-r" intransitive()
   val commonsIO = "commons-io" % "commons-io" % "2.4"
-  val esSpark = ("org.elasticsearch" %% "elasticsearch-spark" % "2.2.0").exclude("org.apache.spark", "spark-sql_2.10").exclude("org.apache.spark", "spark-core_2.10")
+  val esSpark = ("org.elasticsearch" %% "elasticsearch-spark" % "2.2.0").
+    exclude("org.apache.spark", "spark-sql_2.10").
+    exclude("org.apache.spark", "spark-core_2.10")
   val guava = "com.google.guava" % "guava" % "18.0"
   val akka = "com.typesafe.akka" % "akka-actor_2.10" % "2.3.0"
   val compress = "org.apache.commons" % "commons-compress" % "1.10"
@@ -174,8 +178,9 @@ object Dependencies {
   val jGraphTCore = "org.jgrapht" % "jgrapht-core" % "0.9.1"
   val jGraphTExt = "org.jgrapht" % "jgrapht-ext" % "0.9.1"
   //  val apiminer =  "com.github.jatinagarwal" % "apiminer" % "v0.1.5"
-  val es = "org.elasticsearch" % "elasticsearch" % "2.2.0" intransitive()
-  val hadoopCommon = "org.apache.hadoop" % "hadoop-common" % "2.5.2" intransitive()
+  val es = ("org.elasticsearch" % "elasticsearch" % "2.2.0").exclude("joda-time", "joda-time")
+  val hadoopCommon = ("org.apache.hadoop" % "hadoop-common" % "2.5.2").exclude("commons-beanutils", "commons-beanutils-core").
+    exclude("commons-beanutils", "commons-beanutils")
 
   //Eclipse dependencies for Tassal libs
   object EclipseDeps {

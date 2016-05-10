@@ -81,7 +81,7 @@ object CreateCollisionGraph extends Logger {
 
     sc.esRDD(KodeBeagleConfig.eImportsMethodsIndex, query).flatMap {
           case(repoId, valuesMap) => {
-            try {valuesMap.get("tokens.importName").map(_.asInstanceOf[scala.collection.convert.Wrappers.JListWrapper[String]].toList)}
+            try {valuesMap.get("tokens.importName ").map(_.asInstanceOf[scala.collection.convert.Wrappers.JListWrapper[String]].toList)}
             catch  {
               case ex:Exception => None
             }
@@ -96,13 +96,48 @@ object CreateCollisionGraph extends Logger {
     val outputDir = args(2)
     val repoScore = args(3).toInt
     val sampleSize = args(4).toInt
+    val inputDir = args(5)
+    val numOfDefaultPartitions = args(6).toInt		// Any number from {2,3,4}
+    val dataSetSize = args(7).toInt 			// Size of dataset in MB's
+    val numberOfExecutor = args(8).toInt		// Number of executor cores
+    val sizeOfExecutorMemory = args(9).toInt 		// Memory of each executor in MB's
+    val numberOfCores = args(10).toInt			// Total number of executor cores
+    val averageTimeForEachTask = args(11).toDouble	// Average time taken for each task
+	
+    val numTimesPartitions: Double = 2*((dataSetSize+0.0)/(numberOfExecutor*sizeOfExecutorMemory)) // Number of iterations in each experiment
+
+    var calculatedPartitions = numberOfCores							// Number of optimal partitions based on value of numTimesPartitions
+
+    if(numTimesPartitions <= 1.0)
+      calculatedPartitions = numOfDefaultPartitions*numberOfCores
+    else
+      calculatedPartitions = (numTimesPartitions.toInt * numberOfCores)
+
+    val sizeOfEachPartition = dataSetSize / calculatedPartitions				// Size of each partion
+
+    var optimalPartitionsBeforeExperiment = calculatedPartitions.toDouble
+
+    if(sizeOfEachPartition <= 1)
+      optimalPartitionsBeforeExperiment = calculatedPartitions
+    else
+      optimalPartitionsBeforeExperiment = sizeOfEachPartition.toInt * calculatedPartitions	// Optimal number of partitions based on size of each partition
+ 
+    var optimalParttionAfterExperiment = optimalPartitionsBeforeExperiment			// Optimal number of partitions based on 
+     
+    if(averageTimeForEachTask == 0.0)
+	optimalParttionAfterExperiment = optimalPartitionsBeforeExperiment
+    else
+	optimalParttionAfterExperiment = optimalPartitionsBeforeExperiment.toDouble/(300*averageTimeForEachTask)	 	 
+
+			
+   
 
     conf.set(esNodesKey, ipAddress)
     conf.set(esPortKey, httpPort)
     val sc: SparkContext = createSparkContext(conf)
 
 //    val listOfApis: RDD[String] =  getApis(sc)
-    val apiRanks = sc.textFile("/home/jatina/workspace/PageRankDump_desc/apiRanks").cache()
+    val apiRanks = sc.textFile(inputDir).cache()
     val sortedApis: RDD[(Double, String)] = apiRanks.map{a =>
       val b = a.replaceAll("\\(|\\)", "").split(",")
       var rank = 0.0
@@ -151,7 +186,8 @@ object CreateCollisionGraph extends Logger {
           val fileName: String = valuesMap.get("file").getOrElse("").asInstanceOf[String]
           (fileName, score) -> apiName
         }
-      }.filter { case ((fileName, score), apiName) => score >= repoScore}.map { case ((fileName, score), apiName) => (fileName, apiName)}
+      }.filter { case ((fileName, score), apiName) => score >= repoScore}.map { case ((fileName, score), apiName) => (fileName, apiName)}.
+repartition(optimalPartitionsBeforeExperiment.toInt)
     }
 
     /* Obtaining an list of RDD containing  (FileName, List of ApiNames) */
